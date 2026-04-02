@@ -1,8 +1,14 @@
 # Tick
 
+[English](#english) | [中文](#中文)
+
+---
+
+## English
+
 A minimal macOS countdown timer with menu bar integration.
 
-## Features
+### Features
 
 - Circular progress ring with preset timers (5 / 10 / 15 / 25 min)
 - Custom time input + optional note
@@ -10,15 +16,15 @@ A minimal macOS countdown timer with menu bar integration.
 - Desktop alert with looping sound on completion
 - Always-on-top mode, keyboard shortcuts, Dock badge
 
-## Keyboard Shortcuts
+### Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
 | Space | Pause / Resume |
 | Esc | Cancel |
-| Return | Start (custom input) |
+| Return | Start |
 
-## Build
+### Build
 
 ```bash
 git clone https://github.com/qingchejun/Tick.git
@@ -29,10 +35,51 @@ open /Applications/Tick.app
 
 Requires macOS 13+ and Xcode Command Line Tools.
 
-## Install
+### Install
 
-Download `Tick.dmg` from [Releases](https://github.com/qingchejun/Tick/releases), open it, drag `Tick.app` to `/Applications`.
+Download `Tick.dmg` from [Releases](https://github.com/qingchejun/Tick/releases), drag `Tick.app` to `/Applications`.
 
-## License
+### License
+
+MIT
+
+---
+
+## 中文
+
+一个简洁的 macOS 倒计时工具，支持菜单栏常驻。
+
+### 功能
+
+- 环形进度条 + 预设时间（5 / 10 / 15 / 25 分钟）
+- 自定义时长输入 + 可选备注
+- 菜单栏实时显示倒计时，支持快捷启动
+- 倒计时结束弹出桌面提醒，循环提示音直到手动关闭
+- 窗口置顶、键盘快捷键、Dock 角标
+
+### 快捷键
+
+| 按键 | 功能 |
+|------|------|
+| 空格 | 暂停 / 继续 |
+| Esc | 取消 |
+| 回车 | 开始 |
+
+### 构建
+
+```bash
+git clone https://github.com/qingchejun/Tick.git
+cd Tick
+./build.sh
+open /Applications/Tick.app
+```
+
+需要 macOS 13+ 和 Xcode Command Line Tools。
+
+### 安装
+
+从 [Releases](https://github.com/qingchejun/Tick/releases) 下载 `Tick.dmg`，将 `Tick.app` 拖入 `/Applications`。
+
+### 许可证
 
 MIT
