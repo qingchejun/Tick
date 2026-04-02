@@ -4,7 +4,11 @@ import Combine
 
 @MainActor
 final class MenuBarManager: NSObject {
-    private var statusItem: NSStatusItem?
+    private(set) var statusItem: NSStatusItem?
+
+    var statusButton: NSStatusBarButton? {
+        statusItem?.button
+    }
     private let timerManager: TimerManager
     private var cancellables = Set<AnyCancellable>()
     private var blinkTimer: Timer?

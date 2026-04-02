@@ -42,7 +42,7 @@ struct ContentView: View {
             // Progress ring
             CircularProgressView(
                 progress: timer.progress,
-                timeString: timer.timerState == .idle ? "00:00" : timer.formattedTime,
+                timeString: timer.timerState == .idle ? idleTimeString : timer.formattedTime,
                 timerState: timer.timerState
             )
 
@@ -76,17 +76,19 @@ struct ContentView: View {
 
     // MARK: - Preset Buttons
 
+    @State private var selectedPreset: TimerPreset?
+
     private var presetButtons: some View {
         HStack(spacing: 12) {
             ForEach(TimerPreset.defaults) { preset in
                 Button(preset.label) {
-                    timer.start(minutes: preset.minutes, seconds: 0, note: inputNote)
-                    inputMinutes = ""
-                    inputSeconds = ""
-                    inputNote = ""
+                    selectedPreset = preset
+                    inputMinutes = String(preset.minutes)
+                    inputSeconds = "0"
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .tint(selectedPreset?.minutes == preset.minutes ? .accentColor : nil)
                 .disabled(timer.timerState != .idle)
             }
         }
@@ -174,6 +176,12 @@ struct ContentView: View {
 
     // MARK: - Helpers
 
+    private var idleTimeString: String {
+        let mins = Int(inputMinutes) ?? 0
+        let secs = Int(inputSeconds) ?? 0
+        return String(format: "%02d:%02d", mins, secs)
+    }
+
     private var hasValidCustomInput: Bool {
         let mins = Int(inputMinutes) ?? 0
         let secs = Int(inputSeconds) ?? 0
@@ -184,7 +192,10 @@ struct ContentView: View {
         let mins = Int(inputMinutes) ?? 0
         let secs = Int(inputSeconds) ?? 0
         timer.start(minutes: mins, seconds: secs, note: inputNote)
+        inputMinutes = ""
+        inputSeconds = ""
         inputNote = ""
+        selectedPreset = nil
     }
 
     private func filterNumericInput(_ value: String, max: Int) -> String {

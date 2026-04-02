@@ -1,11 +1,21 @@
 import AppKit
+import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarManager: MenuBarManager?
+    private let hasShownBackgroundTipKey = "hasShownBackgroundTip"
+    private var tipPopover: NSPopover?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBarManager = MenuBarManager(timerManager: TimerManager.shared)
         NotificationManager.shared.requestPermission()
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -20,5 +30,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         return true
+    }
+
+    @objc private func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window.canBecomeKey,
+              !UserDefaults.standard.bool(forKey: hasShownBackgroundTipKey) else {
+            return
+        }
+
+        UserDefaults.standard.set(true, forKey: hasShownBackgroundTipKey)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.showMenuBarTip()
+        }
+    }
+
+    @MainActor private func showMenuBarTip() {
+        guard let button = menuBarManager?.statusButton else { return }
+
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.contentViewController = NSHostingController(
+            rootView: BackgroundTipView()
+        )
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        self.tipPopover = popover
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            self?.tipPopover?.performClose(nil)
+            self?.tipPopover = nil
+        }
+    }
+}
+
+struct BackgroundTipView: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .font(.system(size: 18))
+                .foregroundColor(.accentColor)
+
+            Text("Tick is still running here.\nClick this icon to access.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .lineSpacing(2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
