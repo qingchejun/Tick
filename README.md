@@ -12,7 +12,7 @@ A minimal macOS countdown timer with menu bar integration.
 
 - Circular progress ring with preset timers (5 / 10 / 15 / 25 min)
 - Custom time input + optional note
-- Menu bar live countdown with quick-start popover
+- Menu bar live countdown — click to open popover for quick-start, pause, cancel or custom input
 - Desktop alert with looping sound on completion
 - Always-on-top mode, keyboard shortcuts, Dock badge
 
@@ -53,7 +53,7 @@ MIT
 
 - 环形进度条 + 预设时间（5 / 10 / 15 / 25 分钟）
 - 自定义时长输入 + 可选备注
-- 菜单栏实时显示倒计时，支持快捷启动
+- 菜单栏实时显示倒计时 — 点击图标弹出快捷面板，可快速启动预设、自定义时长、暂停或取消
 - 倒计时结束弹出桌面提醒，循环提示音直到手动关闭
 - 窗口置顶、键盘快捷键、Dock 角标
 
