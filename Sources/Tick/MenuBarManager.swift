@@ -40,9 +40,9 @@ final class MenuBarManager: NSObject {
 
         let pop = NSPopover()
         pop.behavior = .transient
-        pop.contentSize = NSSize(width: 220, height: 0)
+        pop.contentSize = NSSize(width: 190, height: 0)
         pop.contentViewController = NSHostingController(
-            rootView: MenuBarPopoverView(timerManager: timerManager) {
+            rootView: MenuBarPopoverView(timerManager: timerManager, presetStore: PresetStore.shared) {
                 pop.performClose(nil)
             }
         )
@@ -115,9 +115,11 @@ final class MenuBarManager: NSObject {
 
 struct MenuBarPopoverView: View {
     @ObservedObject var timerManager: TimerManager
+    @ObservedObject var presetStore: PresetStore
     let dismiss: () -> Void
 
     @State private var customMinutes: String = ""
+    @State private var noteText: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -160,14 +162,35 @@ struct MenuBarPopoverView: View {
             .padding(.vertical, 8)
         }
         .padding(.vertical, 8)
-        .frame(width: 220)
+        .frame(width: 190)
     }
 
     private var idleContent: some View {
         VStack(spacing: 0) {
-            ForEach(TimerPreset.defaults) { preset in
+            if timerManager.hasLastTimer {
                 Button {
-                    timerManager.start(minutes: preset.minutes, seconds: 0)
+                    timerManager.repeatLast()
+                    dismiss()
+                } label: {
+                    HStack {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 11))
+                        Text("Repeat last")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
+                Divider()
+                    .padding(.vertical, 4)
+            }
+
+            ForEach(presetStore.presets) { preset in
+                Button {
+                    timerManager.start(minutes: preset.minutes, seconds: 0, note: noteText)
+                    noteText = ""
                     dismiss()
                 } label: {
                     Text("Start \(preset.label)")
@@ -181,15 +204,26 @@ struct MenuBarPopoverView: View {
             Divider()
                 .padding(.vertical, 4)
 
+            HStack {
+                TextField("Note (optional)", text: $noteText)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12))
+                    .frame(width: 120)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 4)
+
             HStack(spacing: 8) {
                 TextField("Minutes", text: $customMinutes)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 80)
+                    .frame(width: 70)
                     .multilineTextAlignment(.center)
                     .onSubmit {
                         if let mins = Int(customMinutes), mins > 0 {
-                            timerManager.start(minutes: mins, seconds: 0)
+                            timerManager.start(minutes: mins, seconds: 0, note: noteText)
                             customMinutes = ""
+                            noteText = ""
                             dismiss()
                         }
                     }
@@ -197,6 +231,8 @@ struct MenuBarPopoverView: View {
                 Text("min")
                     .foregroundColor(.secondary)
                     .font(.system(size: 12))
+
+                Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

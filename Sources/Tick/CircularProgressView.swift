@@ -6,6 +6,7 @@ struct CircularProgressView: View {
     let timerState: TimerState
 
     @State private var isPulse = false
+    @State private var completionFlash = false
 
     private var ringColor: Color {
         switch timerState {
@@ -14,7 +15,7 @@ struct CircularProgressView: View {
         case .paused:
             return .orange
         case .idle:
-            return .gray
+            return completionFlash ? .green : .gray
         }
     }
 
@@ -24,7 +25,7 @@ struct CircularProgressView: View {
                 .stroke(Color.gray.opacity(0.15), lineWidth: 12)
 
             Circle()
-                .trim(from: 0, to: progress)
+                .trim(from: 0, to: completionFlash ? 1.0 : progress)
                 .stroke(
                     ringColor,
                     style: StrokeStyle(lineWidth: 12, lineCap: .round)
@@ -37,6 +38,7 @@ struct CircularProgressView: View {
                 .font(.system(size: 48, weight: .medium, design: .monospaced))
                 .foregroundStyle(.primary)
                 .opacity(timerState == .paused ? (isPulse ? 0.4 : 1.0) : 1.0)
+                .scaleEffect(completionFlash ? 1.08 : 1.0)
         }
         .frame(width: 200, height: 200)
         .onChange(of: timerState) { newState in
@@ -47,6 +49,19 @@ struct CircularProgressView: View {
             } else {
                 withAnimation(.default) {
                     isPulse = false
+                }
+            }
+        }
+        .onChange(of: progress) { newProgress in
+            if newProgress == 0 && timerState == .idle && !completionFlash {
+                // Timer just finished
+                withAnimation(.easeOut(duration: 0.3)) {
+                    completionFlash = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    withAnimation(.easeIn(duration: 0.5)) {
+                        completionFlash = false
+                    }
                 }
             }
         }

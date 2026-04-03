@@ -4,6 +4,7 @@ import UserNotifications
 final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
     private var soundTimer: Timer?
+    private var autoStopTimer: Timer?
 
     private override init() {
         super.init()
@@ -19,10 +20,13 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 
     func sendTimerComplete(note: String = "") {
-        // Loop alert sound until dismissed
+        // Loop alert sound until dismissed (auto-stop after 45s)
         NSSound(named: .init("Glass"))?.play()
         soundTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
             NSSound(named: .init("Glass"))?.play()
+        }
+        autoStopTimer = Timer.scheduledTimer(withTimeInterval: 45, repeats: false) { [weak self] _ in
+            self?.stopSound()
         }
 
         // System notification as backup
@@ -47,6 +51,8 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     func stopSound() {
         soundTimer?.invalidate()
         soundTimer = nil
+        autoStopTimer?.invalidate()
+        autoStopTimer = nil
         NSSound(named: .init("Glass"))?.stop()
     }
 

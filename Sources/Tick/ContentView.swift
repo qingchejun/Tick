@@ -1,20 +1,54 @@
+import ServiceManagement
 import SwiftUI
 
 struct ContentView: View {
     @ObservedObject private var timer = TimerManager.shared
+    @ObservedObject private var presetStore = PresetStore.shared
 
     @State private var inputMinutes: String = ""
     @State private var inputSeconds: String = ""
     @State private var inputNote: String = ""
-    @State private var alwaysOnTop = false
+    @State private var alwaysOnTop = UserDefaults.standard.bool(forKey: "alwaysOnTop")
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var showPresetEditor = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // Pin button row
+            // Top toolbar
             HStack {
+                Button {
+                    launchAtLogin.toggle()
+                    do {
+                        if launchAtLogin {
+                            try SMAppService.mainApp.register()
+                        } else {
+                            try SMAppService.mainApp.unregister()
+                        }
+                    } catch {
+                        launchAtLogin.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: launchAtLogin ? "sunrise.fill" : "sunrise")
+                            .font(.system(size: 12, weight: .medium))
+                        Text(launchAtLogin ? "Auto-start" : "Auto-start")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(launchAtLogin ? .orange : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(launchAtLogin ? Color.orange.opacity(0.12) : Color.secondary.opacity(0.08))
+                    )
+                }
+                .buttonStyle(.plain)
+                .help("Launch at Login")
+
                 Spacer()
                 Button {
                     alwaysOnTop.toggle()
+                    UserDefaults.standard.set(alwaysOnTop, forKey: "alwaysOnTop")
                     setWindowLevel(alwaysOnTop ? .floating : .normal)
                 } label: {
                     HStack(spacing: 4) {
@@ -35,7 +69,7 @@ struct ContentView: View {
                 .help("Always on Top")
             }
             .padding(.top, 8)
-            .padding(.trailing, 20)
+            .padding(.horizontal, 20)
 
             Spacer()
 
@@ -63,6 +97,11 @@ struct ContentView: View {
                 }
 
                 controlButtons
+
+                Text(shortcutHint)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.quaternary)
+                    .opacity(shortcutHintVisible ? 1 : 0)
             }
             .padding(.bottom, 32)
         }
@@ -72,6 +111,14 @@ struct ContentView: View {
             onEscape: handleEscape,
             onReturn: handleReturn
         ))
+        .onAppear {
+            if alwaysOnTop {
+                setWindowLevel(.floating)
+            }
+        }
+        .sheet(isPresented: $showPresetEditor) {
+            PresetEditorView(store: presetStore)
+        }
     }
 
     // MARK: - Preset Buttons
@@ -79,8 +126,8 @@ struct ContentView: View {
     @State private var selectedPreset: TimerPreset?
 
     private var presetButtons: some View {
-        HStack(spacing: 12) {
-            ForEach(TimerPreset.defaults) { preset in
+        HStack(spacing: 10) {
+            ForEach(presetStore.presets) { preset in
                 Button(preset.label) {
                     selectedPreset = preset
                     inputMinutes = String(preset.minutes)
@@ -88,20 +135,32 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-                .tint(selectedPreset?.minutes == preset.minutes ? .accentColor : nil)
+                .tint(selectedPreset?.id == preset.id ? .accentColor : nil)
                 .disabled(timer.timerState != .idle)
             }
+
+            Button {
+                showPresetEditor = true
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 12))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(timer.timerState != .idle)
+            .help("Edit Presets")
         }
     }
 
     // MARK: - Note Input
 
     private var noteInput: some View {
-        TextField("备注（选填）", text: $inputNote)
+        TextField("Note (optional)", text: $inputNote)
             .textFieldStyle(.roundedBorder)
             .frame(width: 130)
             .multilineTextAlignment(.center)
             .font(.system(size: 13))
+            .onSubmit { handleReturn() }
     }
 
     // MARK: - Custom Input
@@ -115,6 +174,7 @@ struct ContentView: View {
                 .onChange(of: inputMinutes) { newValue in
                     inputMinutes = filterNumericInput(newValue, max: 999)
                 }
+                .onSubmit { handleReturn() }
 
             Text(":")
                 .font(.title3)
@@ -127,6 +187,7 @@ struct ContentView: View {
                 .onChange(of: inputSeconds) { newValue in
                     inputSeconds = filterNumericInput(newValue, max: 59)
                 }
+                .onSubmit { handleReturn() }
         }
     }
 
@@ -136,12 +197,22 @@ struct ContentView: View {
         HStack(spacing: 14) {
             switch timer.timerState {
             case .idle:
+                if timer.hasLastTimer {
+                    Button("Repeat") {
+                        timer.repeatLast()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .help("Repeat \(timer.lastMinutes)m\(timer.lastSeconds > 0 ? " \(timer.lastSeconds)s" : "")")
+                }
+
                 Button("Start") {
                     startFromInput()
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .disabled(!hasValidCustomInput)
+                .help("⏎ Return")
 
             case .running:
                 Button("Pause") {
@@ -149,6 +220,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+                .help("␣ Space")
 
                 Button("Cancel") {
                     timer.cancel()
@@ -156,6 +228,7 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .tint(.red)
+                .help("⎋ Escape")
 
             case .paused:
                 Button("Resume") {
@@ -163,6 +236,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+                .help("␣ Space")
 
                 Button("Cancel") {
                     timer.cancel()
@@ -170,11 +244,23 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
                 .tint(.red)
+                .help("⎋ Escape")
             }
         }
     }
 
     // MARK: - Helpers
+
+    private var shortcutHintVisible: Bool {
+        timer.timerState != .idle || hasValidCustomInput
+    }
+
+    private var shortcutHint: String {
+        if timer.timerState != .idle {
+            return "Space to pause/resume · Esc to cancel"
+        }
+        return "Return to start"
+    }
 
     private var idleTimeString: String {
         let mins = Int(inputMinutes) ?? 0
@@ -207,7 +293,7 @@ struct ContentView: View {
     }
 
     private func setWindowLevel(_ level: NSWindow.Level) {
-        for window in NSApp.windows where window.canBecomeKey {
+        for window in NSApp.windows where window.canBecomeKey && !(window is NSPanel) {
             window.level = level
         }
     }
@@ -231,6 +317,107 @@ struct ContentView: View {
     private func handleReturn() {
         if timer.timerState == .idle && hasValidCustomInput {
             startFromInput()
+        }
+    }
+}
+
+// MARK: - Preset Editor
+
+struct PresetEditorView: View {
+    @ObservedObject var store: PresetStore
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var editingPresets: [TimerPreset] = []
+    @State private var newLabel: String = ""
+    @State private var newMinutes: String = ""
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Edit Presets")
+                .font(.headline)
+
+            List {
+                ForEach($editingPresets) { $preset in
+                    HStack(spacing: 12) {
+                        TextField("Label", text: $preset.label)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+
+                        TextField("Min", text: Binding(
+                            get: { String(preset.minutes) },
+                            set: { preset.minutes = Int($0) ?? preset.minutes }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 50)
+                        .multilineTextAlignment(.center)
+
+                        Text("min")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+
+                        Spacer()
+
+                        Button {
+                            editingPresets.removeAll { $0.id == preset.id }
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .onMove { from, to in
+                    editingPresets.move(fromOffsets: from, toOffset: to)
+                }
+            }
+            .frame(height: 160)
+
+            if editingPresets.count < TimerPreset.maxCount {
+                HStack(spacing: 8) {
+                    TextField("Label", text: $newLabel)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 80)
+
+                    TextField("Min", text: $newMinutes)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 50)
+                        .multilineTextAlignment(.center)
+
+                    Button("Add") {
+                        if let mins = Int(newMinutes), mins > 0, !newLabel.isEmpty {
+                            editingPresets.append(TimerPreset(label: newLabel, minutes: mins))
+                            newLabel = ""
+                            newMinutes = ""
+                        }
+                    }
+                    .disabled(newLabel.isEmpty || Int(newMinutes) ?? 0 <= 0)
+                }
+            }
+
+            HStack(spacing: 12) {
+                Button("Reset") {
+                    editingPresets = TimerPreset.builtIn
+                }
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Cancel") {
+                    dismiss()
+                }
+
+                Button("Save") {
+                    store.presets = editingPresets
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(editingPresets.isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 340)
+        .onAppear {
+            editingPresets = store.presets
         }
     }
 }

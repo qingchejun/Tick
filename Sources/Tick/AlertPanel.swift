@@ -73,11 +73,16 @@ struct AlertContentView: View {
             Button {
                 onDismiss()
             } label: {
-                Text("Dismiss")
-                    .frame(width: 120)
+                Text("Got it")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 120, height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange)
+                    )
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.plain)
             .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 32)

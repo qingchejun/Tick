@@ -15,6 +15,11 @@ final class TimerManager: ObservableObject {
     @Published var remainingSeconds: Int = 0
     @Published var timerState: TimerState = .idle
     @Published var note: String = ""
+    @Published private(set) var lastMinutes: Int = 0
+    @Published private(set) var lastSeconds: Int = 0
+    @Published private(set) var lastNote: String = ""
+
+    var hasLastTimer: Bool { lastMinutes > 0 || lastSeconds > 0 }
 
     private var endDate: Date?
     private var pausedRemaining: Int = 0
@@ -32,12 +37,25 @@ final class TimerManager: ObservableObject {
         return String(format: "%02d:%02d", m, s)
     }
 
-    private init() {}
+    private init() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.tick()
+            }
+        }
+    }
 
     func start(minutes: Int, seconds: Int, note: String = "") {
         let total = minutes * 60 + seconds
         guard total > 0 else { return }
 
+        lastMinutes = minutes
+        lastSeconds = seconds
+        lastNote = note
         self.note = note
         totalSeconds = total
         remainingSeconds = total
@@ -45,6 +63,11 @@ final class TimerManager: ObservableObject {
         timerState = .running
         updateDockBadge()
         startTicking()
+    }
+
+    func repeatLast() {
+        guard hasLastTimer else { return }
+        start(minutes: lastMinutes, seconds: lastSeconds, note: lastNote)
     }
 
     func pause() {
